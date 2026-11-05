@@ -166,8 +166,8 @@ class PMXDatasetGenerator:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "pmx_model": ("PMX_MODEL",),  # node 159 (Default Load PMX Model) - same camera as your workflow
-                "bone_controls": ("STRING", {"forceInput": True}),  # node 126
+                "pmx_model": ("PMX_MODEL",),
+                "bone_controls": ("STRING", {"forceInput": True}),
                 "output_folder": ("STRING", {"default": "pmx_dataset/model1"}),
                 "count": ("INT", {"default": 500, "min": 1, "max": 200000}),
                 "render_width": ("INT", {"default": 256, "min": 64, "max": 1024}),
