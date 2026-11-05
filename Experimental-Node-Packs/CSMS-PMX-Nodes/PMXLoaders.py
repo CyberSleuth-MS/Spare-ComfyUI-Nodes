@@ -1,4 +1,6 @@
 # CyberSleuth-MS/Spare-Nodes/Experimental-Node-Packs/CSMS-PMX-Nodes/PMXLoaders.py
+# Status: Completely Operational
+# TODO: 1. Add a Bool to handle the verbose debugging. 2. Fix annoying word wrapping formatting.
 import struct
 import os
 import uuid
@@ -22,183 +24,81 @@ PMX_MODEL = io.Custom("PMX_MODEL")
 
 @PromptServer.instance.routes.post("/pmx/upload")
 async def upload_pmx_asset(request):
-    asset_root = os.path.join(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        ),
-        "pmx_assets",
-    )
-
-    os.makedirs(
-        asset_root,
-        exist_ok=True,
-    )
-
-    temporary_directory = os.path.join(
-        asset_root,
-        f"_upload_{uuid.uuid4().hex}",
-    )
-
-    os.makedirs(
-        temporary_directory,
-        exist_ok=True,
-    )
-
+    asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pmx_assets")
+    os.makedirs(asset_root, exist_ok=True)
+    temporary_directory = os.path.join(asset_root, f"_upload_{uuid.uuid4().hex}")
+    os.makedirs(temporary_directory, exist_ok=True)
     try:
         reader = await request.multipart()
-
         pmx_path = None
-
+        
         while True:
             part = await reader.next()
-
+            
             if part is None:
                 break
-
             if part.name == "pmx_path":
                 pmx_path = await part.text()
                 continue
-
             if part.name != "files":
                 continue
-
             relative_path = part.filename
-
             if not relative_path:
                 continue
-
-            relative_path = relative_path.replace(
-                "\\",
-                "/",
-            )
-
-            relative_path = os.path.normpath(
-                relative_path
-            )
+                
+            relative_path = relative_path.replace("\\", "/")
+            relative_path = os.path.normpath(relative_path)
 
             if (
                 relative_path.startswith("..")
                 or os.path.isabs(relative_path)
                 or os.path.basename(relative_path) == ".."
             ):
-                raise ValueError(
-                    "Invalid PMX asset path."
-                )
+                raise ValueError("Invalid PMX asset path.")
 
-            destination = os.path.abspath(
-                os.path.join(
-                    temporary_directory,
-                    relative_path,
-                )
-            )
+            destination = os.path.abspath(os.path.join(temporary_directory, relative_path))
+            
+            if os.path.commonpath((temporary_directory, destination)) != os.path.abspath(temporary_directory):
+                raise ValueError("PMX asset path escapes asset directory.")
+                
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
 
-            if os.path.commonpath(
-                (
-                    temporary_directory,
-                    destination,
-                )
-            ) != os.path.abspath(
-                temporary_directory
-            ):
-                raise ValueError(
-                    "PMX asset path escapes asset directory."
-                )
-
-            os.makedirs(
-                os.path.dirname(destination),
-                exist_ok=True,
-            )
-
-            with open(
-                destination,
-                "wb",
-            ) as f:
+            with open(destination, "wb") as f:
                 while True:
                     chunk = await part.read_chunk()
-
                     if not chunk:
                         break
-
                     f.write(chunk)
-
+            
         if not pmx_path:
-            raise ValueError(
-                "No PMX path was supplied."
-            )
+            raise ValueError("No PMX path was supplied.")
+        pmx_path = pmx_path.replace("\\", "/")
+        pmx_path = os.path.normpath(pmx_path)
 
-        pmx_path = pmx_path.replace(
-            "\\",
-            "/",
-        )
+        if (pmx_path.startswith("..") or os.path.isabs(pmx_path)):
+            raise ValueError("Invalid PMX path.")
 
-        pmx_path = os.path.normpath(
-            pmx_path
-        )
+        temporary_pmx_path = os.path.abspath(os.path.join(temporary_directory,pmx_path))
 
-        if (
-            pmx_path.startswith("..")
-            or os.path.isabs(pmx_path)
-        ):
-            raise ValueError(
-                "Invalid PMX path."
-            )
+        if os.path.commonpath((temporary_directory, temporary_pmx_path)) != os.path.abspath(temporary_directory):
+            raise ValueError("PMX path escapes asset directory.")
 
-        temporary_pmx_path = os.path.abspath(
-            os.path.join(
-                temporary_directory,
-                pmx_path,
-            )
-        )
-
-        if os.path.commonpath(
-            (
-                temporary_directory,
-                temporary_pmx_path,
-            )
-        ) != os.path.abspath(
-            temporary_directory
-        ):
-            raise ValueError(
-                "PMX path escapes asset directory."
-            )
-
-        if not os.path.isfile(
-            temporary_pmx_path
-        ):
-            raise FileNotFoundError(
-                "Uploaded PMX file was not found."
-            )
+        if not os.path.isfile(temporary_pmx_path):
+            raise FileNotFoundError("Uploaded PMX file was not found.")
 
         md5 = hashlib.md5()
 
-        with open(
-            temporary_pmx_path,
-            "rb",
-        ) as f:
+        with open(temporary_pmx_path, "rb") as f:
             while True:
-                chunk = f.read(
-                    1024 * 1024
-                )
-
+                chunk = f.read(1024 * 1024)
                 if not chunk:
                     break
-
                 md5.update(chunk)
-
         asset_hash = md5.hexdigest()
+        asset_directory = os.path.join(asset_root, asset_hash)
 
-        asset_directory = os.path.join(
-            asset_root,
-            asset_hash,
-        )
-
-        if os.path.exists(
-            asset_directory
-        ):
-            shutil.rmtree(
-                temporary_directory,
-                ignore_errors=True,
-            )
+        if os.path.exists(asset_directory):
+            shutil.rmtree(temporary_directory, ignore_errors=True)
 
             final_pmx_path = os.path.abspath(
                 os.path.join(
@@ -207,12 +107,8 @@ async def upload_pmx_asset(request):
                 )
             )
 
-            if not os.path.isfile(
-                final_pmx_path
-            ):
-                raise FileNotFoundError(
-                    "Existing PMX asset does not contain the PMX file."
-                )
+            if not os.path.isfile(final_pmx_path):
+                raise FileNotFoundError("Existing PMX asset does not contain the PMX file.")
 
             return web.json_response(
                 {
@@ -340,7 +236,7 @@ class PMXLoader(io.ComfyNode):
         # DO NOT REMOVE
         # NEVER REMOVE
         pmx_data["texture-aka-main_folder"] = os.path.dirname(path)
-        # OKAY? DO NOT REMOVE WHAT IS ABOVE THIS LINE. EVER.
+        # DO NOT REMOVE WHAT IS ABOVE THIS LINE. EVER.
         print("\n" + "=" * 80)
         print("DIRECT PMX BONE PARSER")
         print("=" * 80)
@@ -480,11 +376,6 @@ class PMXBoneHierarchy(io.ComfyNode):
         return io.NodeOutput(
             "\n".join(lines)
         )
-        
-
-
-
-
 
 
 def _pmx_read_text(data, offset, encoding):
@@ -498,7 +389,6 @@ def _pmx_read_text(data, offset, encoding):
         text = raw.decode("utf-16-le", errors="replace")
     else:
         text = raw.decode("utf-8", errors="replace")
-
     return text, offset
 
 
@@ -513,7 +403,6 @@ def _pmx_read_index(data, offset, size, signed=True):
         raise ValueError(
             f"Invalid PMX index size: {size}"
         )
-
     return struct.unpack_from(fmt, data, offset)[0], offset + size
 
 
@@ -534,9 +423,7 @@ def parse_pmx_bones(path):
     offset += 4
 
     if signature != b"PMX ":
-        raise ValueError(
-            f"Not a PMX file. Signature: {signature!r}"
-        )
+        raise ValueError(f"Not a PMX file. Signature: {signature!r}")
 
     version = struct.unpack_from(
         "<f",
@@ -554,9 +441,7 @@ def parse_pmx_bones(path):
     offset += globals_count
 
     if globals_count < 8:
-        raise ValueError(
-            f"Invalid PMX globals size: {globals_count}"
-        )
+        raise ValueError(f"Invalid PMX globals size: {globals_count}")
 
     encoding = globals_data[0]
     additional_uv_count = globals_data[1]
