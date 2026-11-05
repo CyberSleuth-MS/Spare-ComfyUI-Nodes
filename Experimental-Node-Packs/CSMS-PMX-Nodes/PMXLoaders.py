@@ -1,4 +1,4 @@
-# CyberSleuth-MS/Spare-Nodes/Experimental-Node-Packs/CSMS-PMX-Nodes/PMXLoaders.py
+# CyberSleuth-MS/Spare-ComfyUI-Nodes/Experimental-Node-Packs/CSMS-PMX-Nodes/PMXLoaders.py
 # Status: Completely Operational
 # TODO: 1. Add a Bool to handle the verbose debugging. 2. Fix annoying word wrapping formatting.
 import struct
