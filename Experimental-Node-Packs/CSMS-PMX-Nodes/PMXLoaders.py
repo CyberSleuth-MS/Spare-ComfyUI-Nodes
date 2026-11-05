@@ -198,7 +198,7 @@ class PMXLoader(io.ComfyNode):
         return io.Schema(
             node_id="PMXLoader",
             display_name="PMX File",
-            category="Utility",
+            category="CSMS PMX Nodes",
             inputs=[
                 io.String.Input(
                     "pmx_model",
